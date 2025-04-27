@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Weather App</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!-- Loader -->
+<div id="loader">
+    <div class="emoji">☁️</div>
+</div>
+
+<div class="overlay">
+    <div class="container">
+        <div class="top-bar">
+            <h1>🌦️ Weather App</h1>
+            <div class="toggle-switch">
+                <input type="checkbox" id="dark-toggle" />
+                <label for="dark-toggle" class="switch">
+                    <span class="icon sun">☀️</span>
+                    <span class="icon moon">🌙</span>
+                </label>
+            </div>
+        </div>
+
+        <form method="POST">
+            <input type="text" name="city" placeholder="Enter city" required>
+            <button type="submit">Get Weather</button>
+            <button type="button" id="detect-location">📍 Auto-Detect</button>
+        </form>
+
+        {% if weather %}
+        <div class="card">
+            <h2>{{ weather.location }}</h2>
+            <p class="weather-emoji">{{ weather.icon }}</p>
+            <p><strong>{{ weather.condition }}</strong></p>
+            <p>🌡️ {{ weather.temp }}</p>
+            <p>💧 {{ weather.humidity }}</p>
+            <p>💨 {{ weather.wind }}</p>
+        </div>
+
+        <div class="forecast-scroll">
+            {% for day in forecast %}
+            <div class="forecast-card">
+                <h3>{{ day.day }}</h3>
+                <p class="weather-emoji">{{ day.icon }}</p>
+                <p><strong>{{ day.condition }}</strong></p>
+                <p>🌡️ {{ day.temp }}</p>
+                <p>💧 {{ day.humidity }}</p>
+                <p>💨 {{ day.wind }}</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <script>document.addEventListener("DOMContentLoaded", () => {
+            showToast('🌦️ Weather updated!');
+            updateBackground('{{ weather.condition }}');
+        });</script>
+        {% elif error %}
+        <p class="error">{{ error }}</p>
+        {% endif %}
+    </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const toggle = document.getElementById("dark-toggle");
+
+    const setTheme = (dark) => {
+        if (dark) {
+            document.body.classList.add("dark");
+            localStorage.setItem("theme", "dark");
+        } else {
+            document.body.classList.remove("dark");
+            localStorage.setItem("theme", "light");
+        }
+    };
+
+    const prefersDark = localStorage.getItem("theme") === "dark";
+    toggle.checked = prefersDark;
+    setTheme(prefersDark);
+
+    toggle.addEventListener("change", () => {
+        setTheme(toggle.checked);
+    });
+
+    const geoBtn = document.getElementById("detect-location");
+    geoBtn.addEventListener("click", () => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+                const lat = pos.coords.latitude;
+                const lon = pos.coords.longitude;
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`);
+                const data = await res.json();
+                const city = data.address.city || data.address.town || data.address.state || data.address.country;
+                document.querySelector("input[name='city']").value = city;
+                showToast(`📍 Detected: ${city}`);
+            });
+        }
+    });
+
+    const container = document.querySelector('.container');
+    container.addEventListener('mousemove', (e) => {
+        let x = (window.innerWidth / 2 - e.pageX) / 30;
+        let y = (window.innerHeight / 2 - e.pageY) / 30;
+        container.style.transform = `rotateY(${x}deg) rotateX(${y}deg)`;
+    });
+    container.addEventListener('mouseleave', () => {
+        container.style.transform = `rotateY(0deg) rotateX(0deg)`;
+    });
+
+    window.addEventListener("load", () => {
+        document.body.classList.add("loaded");
+    });
+});
+
+function updateBackground(condition = null) {
+    if (!condition) {
+        // No weather searched yet
+        const dark = localStorage.getItem("theme") === "dark";
+        if (dark) {
+            document.body.style.background = "url('/static/backgrounds/dark-default.jpg') no-repeat center center fixed";
+        } else {
+            document.body.style.background = "url('/static/backgrounds/light-default.jpg') no-repeat center center fixed";
+        }
+        document.body.style.backgroundSize = "cover";
+    } else {
+        // After search, apply based on weather condition
+        condition = condition.toLowerCase();
+        let background = '/static/backgrounds/default.jpg'; // fallback
+
+        if (condition.includes("clear") || condition.includes("sun")) {
+            background = '/static/backgrounds/clear.jpg';
+        } else if (condition.includes("cloud") || condition.includes("overcast")) {
+            background = '/static/backgrounds/cloud.jpg';
+        } else if (condition.includes("rain") || condition.includes("drizzle")) {
+            background = '/static/backgrounds/rain.jpg';
+        } else if (condition.includes("storm") || condition.includes("thunder")) {
+            background = '/static/backgrounds/storm.jpg';
+        } else if (condition.includes("snow") || condition.includes("sleet")) {
+            background = '/static/backgrounds/snow.jpg';
+        } else if (condition.includes("fog") || condition.includes("mist") || condition.includes("haze")) {
+            background = '/static/backgrounds/fog.jpg';
+        } else if (condition.includes("wind")) {
+            background = '/static/backgrounds/wind.jpg';
+        }
+
+        document.body.style.background = `url('${background}') no-repeat center center fixed`;
+        document.body.style.backgroundSize = "cover";
+    }
+}
+
+
+function showToast(message) {
+    const toast = document.getElementById("toast");
+    toast.innerText = message;
+    toast.style.display = "block";
+    setTimeout(() => {
+        toast.style.display = "none";
+    }, 3000);
+}
+</script>
+
+</body>
+</html>
